@@ -316,13 +316,25 @@ def run_monitor(cfg):
     bus.add_message_filter(msg_filter)
     loop = GLib.MainLoop()
 
-    def on_signal(signum, frame):
-        log.info("Signal %d received, exiting", signum)
-        loop.quit()
-        sys.exit(0)
+    # Hook signals into the GLib main loop rather than via signal.signal().
+    # Python's signal.signal() handlers are dispatched between bytecodes, so
+    # they don't fire while loop.run() is blocked in poll(); on an idle
+    # system, SIGTERM would sit queued until the next D-Bus event arrived,
+    # making systemd's stop time out (~45s) and abort the daemon.
+    def make_signal_handler(signum):
+        def handler():
+            log.info("Signal %d received, exiting", signum)
+            loop.quit()
+            # Raise SystemExit so we break out of main()'s reconnect loop
+            # (`while True: run_monitor(...)`) instead of immediately
+            # re-entering another loop.run().
+            sys.exit(0)
+        return handler
 
-    signal.signal(signal.SIGTERM, on_signal)
-    signal.signal(signal.SIGINT, on_signal)
+    GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGTERM,
+                         make_signal_handler(signal.SIGTERM))
+    GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGINT,
+                         make_signal_handler(signal.SIGINT))
 
     log.info("Monitoring notifications (pid=%d)...", os.getpid())
     loop.run()

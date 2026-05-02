@@ -16,7 +16,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "niri-notify-focus";
   version = "0.2.0";
 
-  src = ./.;
+  src = ../.;
 
   nativeBuildInputs = [ makeWrapper ];
 

@@ -15,12 +15,17 @@
     in
     {
       packages = forAllSystems (system: rec {
-        niri-notify-focus = (pkgsFor system).callPackage ./package.nix { };
+        niri-notify-focus = (pkgsFor system).callPackage ./nix/package.nix { };
         default = niri-notify-focus;
       });
 
       overlays.default = _final: prev: {
-        niri-notify-focus = prev.callPackage ./package.nix { };
+        niri-notify-focus = prev.callPackage ./nix/package.nix { };
+      };
+
+      homeManagerModules = rec {
+        niri-notify-focus = import ./nix/hm-module.nix self;
+        default = niri-notify-focus;
       };
 
       formatter = forAllSystems (system: (pkgsFor system).nixfmt-rfc-style);
